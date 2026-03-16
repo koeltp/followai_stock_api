@@ -1,0 +1,35 @@
+{
+  "database": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "root",
+    "password": "HA9iHSrKEKgaPpna7",
+    "db": "xszb",
+    "charset": "utf8mb4"
+  },
+  "app": {
+    "title": "威科夫操盘法股票筛选系统",
+    "description": "基于Python + FastAPI + Qwen3.5-Plus + MySQL的威科夫操盘法股票筛选系统",
+    "version": "1.0.0",
+    "host": "0.0.0.0",
+    "port": 8001
+  },
+  "cors": {
+    "allow_origins": ["*"],
+    "allow_credentials": true,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"]
+  },
+  "baostock": {
+    "frequency": "d",
+    "adjustflag": "3"
+  },
+  "api": {
+    "timeout": 30,
+    "temperature": 0.7,
+    "max_tokens": 2000
+  },
+  "api_price": {
+    "price_per_1000_tokens": 0.01
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "system_config": {
+    "top_configs": [
+      {
+        "config_key": "qwen_model",
+        "config_value": "千问模型",
+        "description": "Qwen 模型基础配置",
+        "parent": 0
+      },
+      {
+        "config_key": "qwen_model_price",
+        "config_value": "千问价格",
+        "description": "Qwen 模型价格配置",
+        "parent": 0
+      }
+    ],
+    "model_configs": [
+      {
+        "config_key": "qwen_api_key",
+        "config_value": "sk-",
+        "description": "Qwen API 密钥",
+        "parent": "qwen_model"
+      },
+      {
+        "config_key": "qwen_base_url",
+        "config_value": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "description": "Qwen API 基础URL",
+        "parent": "qwen_model"
+      },
+      {
+        "config_key": "qwen_model_name",
+        "config_value": "qwen-plus",
+        "description": "Qwen 模型名称",
+        "parent": "qwen_model"
+      },
+      {
+        "config_key": "qwen_input_price",
+        "config_value": "0.0008",
+        "description": "Qwen API 输入价格（元/千tokens）",
+        "parent": "qwen_model"
+      },
+      {
+        "config_key": "qwen_output_price",
+        "config_value": "0.0048",
+        "description": "Qwen API 输出价格（元/千tokens）",
+        "parent": "qwen_model"
+      }
+    ],
+    "price_configs": [
+      {
+        "config_key": "qwen.standard.input.price",
+        "config_value": "0.0008",
+        "description": "Qwen API 标准输入价格（元/千tokens）",
+        "parent": "qwen_model_price"
+      },
+      {
+        "config_key": "qwen.standard.output.price",
+        "config_value": "0.0048",
+        "description": "Qwen API 标准输出价格（元/千tokens）",
+        "parent": "qwen_model_price"
+      },
+      {
+        "config_key": "qwen.batch.file.input.price",
+        "config_value": "0.0004",
+        "description": "Qwen API Batch File 输入价格（元/千tokens）",
+        "parent": "qwen_model_price"
+      },
+      {
+        "config_key": "qwen.batch.file.output.price",
+        "config_value": "0.0024",
+        "description": "Qwen API Batch File 输出价格（元/千tokens）",
+        "parent": "qwen_model_price"
+      },
+      {
+        "config_key": "qwen.batch.chat.input.price",
+        "config_value": "0.0004",
+        "description": "Qwen API Batch Chat 输入价格（元/千tokens）",
+        "parent": "qwen_model_price"
+      },
+      {
+        "config_key": "qwen.batch.chat.output.price",
+        "config_value": "0.0024",
+        "description": "Qwen API Batch Chat 输出价格（元/千tokens）",
+        "parent": "qwen_model_price"
+      },
+      {
+        "config_key": "qwen.cache.create.price",
+        "config_value": "0.001",
+        "description": "Qwen API 显式缓存创建价格（元/千tokens）",
+        "parent": "qwen_model_price"
+      },
+      {
+        "config_key": "qwen.cache.hit.price",
+        "config_value": "0.00008",
+        "description": "Qwen API 显式缓存命中价格（元/千tokens）",
+        "parent": "qwen_model_price"
+      },
+      {
+        "config_key": "qwen_input_price",
+        "config_value": "0.0008",
+        "description": "Qwen API 输入价格（元/千tokens）",
+        "parent": "qwen_model_price"
+      },
+      {
+        "config_key": "qwen_output_price",
+        "config_value": "0.0048",
+        "description": "Qwen API 输出价格（元/千tokens）",
+        "parent": "qwen_model_price"
+      }
+    ]
+  }
+}
