@@ -8,21 +8,10 @@ from pymysql.cursors import DictCursor
 from typing import List, Dict, Any
 import json
 import os
-
-# 从配置文件读取配置
-def load_config():
-    """从配置文件加载配置"""
-    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(f"配置文件不存在: {config_path}")
-    with open(config_path, 'r', encoding='utf-8') as f:
-        config = json.load(f)
-        if not config:
-            raise ValueError("配置文件为空")
-        return config
+from app.config import config_manager
 
 # 加载配置
-CONFIG = load_config()
+CONFIG = config_manager.config
 
 # 数据库配置
 DB_CONFIG = CONFIG.get('database')
@@ -157,7 +146,7 @@ def init_database():
             print(f"添加parent字段失败: {str(e)}")
         
         # 从初始化配置文件读取默认配置数据
-        init_config_path = os.path.join(os.path.dirname(__file__), 'init_config.json')
+        init_config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'init_config.json')
         if os.path.exists(init_config_path):
             with open(init_config_path, 'r', encoding='utf-8') as f:
                 init_config = json.load(f)

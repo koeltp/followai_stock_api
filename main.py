@@ -6,9 +6,9 @@
 import threading
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api import router
-from config import APP_CONFIG, CORS_CONFIG
-from scheduler import setup_scheduler, run_scheduler
+from app.routes import router
+from app.config import APP_CONFIG, CORS_CONFIG
+from app.tasks import setup_scheduler, run_scheduler
 
 # 创建FastAPI应用实例
 app = FastAPI(
