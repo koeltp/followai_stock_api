@@ -115,67 +115,6 @@ def init_database():
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         ''')
         
-        # 移除wyckoff_analysis表的唯一键约束（如果存在）
-        try:
-            cursor.execute('''
-                ALTER TABLE wyckoff_analysis DROP INDEX IF EXISTS idx_code_date;
-            ''')
-            print("移除wyckoff_analysis表的唯一键约束成功")
-        except Exception as e:
-            print(f"移除唯一键约束失败: {str(e)}")
-        
-        # 为已有的wyckoff_analysis表添加chat_completion_id字段
-        try:
-            cursor.execute('''
-                ALTER TABLE wyckoff_analysis ADD COLUMN IF NOT EXISTS chat_completion_id VARCHAR(100) NULL;
-            ''')
-            print("为wyckoff_analysis表添加chat_completion_id字段成功")
-        except Exception as e:
-            print(f"添加chat_completion_id字段失败: {str(e)}")
-        
-        # 移除analysis_log_id字段（如果存在）
-        try:
-            cursor.execute('''
-                ALTER TABLE wyckoff_analysis DROP COLUMN IF EXISTS analysis_log_id;
-            ''')
-            print("从wyckoff_analysis表移除analysis_log_id字段成功")
-        except Exception as e:
-            print(f"移除analysis_log_id字段失败: {str(e)}")
-        
-        # 移除外键约束（如果存在）
-        try:
-            cursor.execute('''
-                ALTER TABLE wyckoff_analysis DROP FOREIGN KEY IF EXISTS fk_analysis_log;
-            ''')
-            print("从wyckoff_analysis表移除外键约束成功")
-        except Exception as e:
-            print(f"移除外键约束失败: {str(e)}")
-        
-        # 修改字段长度
-        try:
-            cursor.execute('''
-                ALTER TABLE wyckoff_analysis MODIFY COLUMN trend VARCHAR(200) NOT NULL;
-            ''')
-            print("修改wyckoff_analysis表trend字段长度成功")
-        except Exception as e:
-            print(f"修改trend字段长度失败: {str(e)}")
-        
-        try:
-            cursor.execute('''
-                ALTER TABLE wyckoff_analysis MODIFY COLUMN volume_pattern VARCHAR(200) NOT NULL;
-            ''')
-            print("修改wyckoff_analysis表volume_pattern字段长度成功")
-        except Exception as e:
-            print(f"修改volume_pattern字段长度失败: {str(e)}")
-        
-        try:
-            cursor.execute('''
-                ALTER TABLE wyckoff_analysis MODIFY COLUMN trade_signal VARCHAR(50) NOT NULL;
-            ''')
-            print("修改wyckoff_analysis表trade_signal字段长度成功")
-        except Exception as e:
-            print(f"修改trade_signal字段长度失败: {str(e)}")
-        
         # 创建系统配置表
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS system_config (
