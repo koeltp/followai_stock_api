@@ -45,12 +45,16 @@ api/
 ## 安装步骤
 
 ### 1. 克隆项目
-
+#### 1.1 克隆 API 项目
 ```bash
-git clone <项目地址>
+git clone https://github.com/koeltp/followai_stock_api.git
 cd followai_stock/api
 ```
-
+#### 1.2 克隆 Web 项目
+```bash
+git clone https://github.com/koeltp/followai_stock_web.git
+cd followai_stock/web
+```
 ### 2. 创建虚拟环境（可选但推荐）
 
 #### Windows
@@ -74,6 +78,11 @@ pip install -r requirements.txt
 ### 4. 配置文件
 
 1. **初始化配置文件**：`init_config.json` 是项目初始化时使用的配置文件，用于初始化数据库，初始化完成后不再使用。
+
+   主要需要配置以下项：
+   - `qwen_api_key`：Qwen API 密钥，需要去 [阿里云百炼控制台](https://bailian.console.aliyun.com/#/home) 获取
+
+   其他配置项可以保持不变。
 
 2. **主配置文件**：`config.json` 是项目运行时使用的配置文件，需要根据实际情况修改以下配置项：
    - 数据库配置（host、port、user、password、db）
@@ -111,6 +120,8 @@ uvicorn main:app --host 0.0.0.0 --port 8001
 - `POST /stocks/wyckoff/screening` - 执行威科夫筛选
 - `GET /stocks/wyckoff/history` - 获取筛选历史
 - `GET /stocks/wyckoff/analysis-history` - 获取分析历史
+- `GET /stocks/wyckoff/analysis-logs` - 获取分析日志
+- `POST /stocks/wyckoff/reparse/{log_id}` - 重新解析分析日志
 - `GET /stocks/history` - 获取股票历史数据
 - `GET /config` - 获取所有配置
 - `POST /config` - 更新配置
