@@ -7,22 +7,7 @@ from pydantic import BaseModel, ConfigDict
 from typing import List, Optional, Dict, Any
 
 
-class StockBase(BaseModel):
-    """股票基本信息模型"""
-    code: str
-    name: str
 
-
-class StockData(BaseModel):
-    """股票历史数据模型"""
-    date: str
-    code: str
-    open: float
-    high: float
-    low: float
-    close: float
-    volume: int
-    amount: float
 
 
 class WyckoffAnalysis(BaseModel):
@@ -61,9 +46,3 @@ class HealthResponse(BaseModel):
     message: str
 
 
-class APIEndpoint(BaseModel):
-    """API端点信息模型"""
-    name: str
-    path: str
-    method: str
-    description: str
