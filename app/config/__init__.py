@@ -8,8 +8,7 @@ from .config import (
     APP_CONFIG,
     CORS_CONFIG,
     BAOSTOCK_CONFIG,
-    API_CONFIG,
-    API_PRICE_CONFIG,
+    LLM_MODEL_CONFIG,
     get_qwen_api_config
 )
 
@@ -18,7 +17,6 @@ __all__ = [
     'APP_CONFIG',
     'CORS_CONFIG',
     'BAOSTOCK_CONFIG',
-    'API_CONFIG',
-    'API_PRICE_CONFIG',
+    'LLM_MODEL_CONFIG',
     'get_qwen_api_config'
 ]

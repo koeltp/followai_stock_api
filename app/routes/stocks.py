@@ -5,7 +5,6 @@
 
 from fastapi import APIRouter, HTTPException
 from app.db import get_hs300_stocks_from_db
-from app.services import get_stock_history
 
 # 创建路由器
 router = APIRouter(prefix="/stocks")
@@ -39,26 +38,3 @@ def get_hs300_stocks_endpoint(page: int = 1, page_size: int = 10, search: str = 
             }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取沪深300成分股失败: {str(e)}")
-
-
-@router.get("/history")
-def get_stock_history_endpoint(code: str, start_date: str = None, end_date: str = None):
-    """获取股票历史数据（用于K线图展示）"""
-    try:
-        stock_data = get_stock_history(code, start_date, end_date)
-        return {
-            "code": code,
-            "data": [
-                {
-                    "date": item.date,
-                    "open": item.open,
-                    "high": item.high,
-                    "low": item.low,
-                    "close": item.close,
-                    "volume": item.volume
-                }
-                for item in stock_data
-            ]
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取股票历史数据失败: {str(e)}")

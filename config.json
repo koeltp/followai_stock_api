@@ -24,12 +24,9 @@
     "frequency": "d",
     "adjustflag": "3"
   },
-  "api": {
+  "llm_model_config": {
     "timeout": 30,
     "temperature": 0.7,
     "max_tokens": 2000
-  },
-  "api_price": {
-    "price_per_1000_tokens": 0.01
   }
 }

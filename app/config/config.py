@@ -59,20 +59,12 @@ class ConfigManager:
         return baostock_config
     
     @property
-    def api_config(self) -> Dict[str, Any]:
-        """获取API配置"""
-        api_config = self.config.get('api')
-        if not api_config:
-            raise ValueError("API配置缺失，请在config.json中配置 api")
-        return api_config
-    
-    @property
-    def api_price_config(self) -> Dict[str, Any]:
-        """获取API价格配置"""
-        api_price_config = self.config.get('api_price')
-        if not api_price_config:
-            raise ValueError("API价格配置缺失，请在config.json中配置 api_price")
-        return api_price_config
+    def llm_model_config(self) -> Dict[str, Any]:
+        """获取LLM模型配置"""
+        llm_model_config = self.config.get('llm_model_config')
+        if not llm_model_config:
+            raise ValueError("LLM模型配置缺失，请在config.json中配置 llm_model_config")
+        return llm_model_config
     
     def get_qwen_api_config(self) -> Dict[str, Any]:
         """从数据库获取Qwen API配置"""
@@ -81,16 +73,16 @@ class ConfigManager:
         
         from app.db.database import get_config_value
         
-        api_key = get_config_value('qwen_api_key')
-        base_url = get_config_value('qwen_base_url')
-        model = get_config_value('qwen_model') or get_config_value('qwen_model_name')
+        api_key = get_config_value('qwen_api_key', '')
+        base_url = get_config_value('qwen_base_url', '')
+        model = get_config_value('qwen_model_name', '')
         
         if not api_key:
             raise ValueError("Qwen API密钥未配置，请在系统配置页面配置 qwen_api_key")
         if not base_url:
             raise ValueError("Qwen API地址未配置，请在系统配置页面配置 qwen_base_url")
         if not model:
-            raise ValueError("Qwen 模型未配置，请在系统配置页面配置 qwen_model")
+            raise ValueError("Qwen 模型未配置，请在系统配置页面配置 qwen_model_name")
         
         self._qwen_api_config = {
             "api_key": api_key,
@@ -107,6 +99,5 @@ config_manager = ConfigManager()
 APP_CONFIG = config_manager.app_config
 CORS_CONFIG = config_manager.cors_config
 BAOSTOCK_CONFIG = config_manager.baostock_config
-API_CONFIG = config_manager.api_config
-API_PRICE_CONFIG = config_manager.api_price_config
+LLM_MODEL_CONFIG = config_manager.llm_model_config
 get_qwen_api_config = config_manager.get_qwen_api_config

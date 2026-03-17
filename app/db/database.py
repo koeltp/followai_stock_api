@@ -4,7 +4,6 @@
 """
 
 import pymysql
-from pymysql.cursors import DictCursor
 from typing import List, Dict, Any
 import json
 import os
@@ -102,19 +101,80 @@ def init_database():
                 name VARCHAR(50) NOT NULL,
                 start_date DATE NULL,
                 end_date DATE NULL,
-                trend VARCHAR(20) NOT NULL,
-                volume_pattern VARCHAR(50) NOT NULL,
+                trend VARCHAR(200) NOT NULL,
+                volume_pattern VARCHAR(200) NOT NULL,
                 support_level DECIMAL(10,2),
                 resistance_level DECIMAL(10,2),
-                trade_signal VARCHAR(20) NOT NULL,
+                trade_signal VARCHAR(50) NOT NULL,
                 confidence DECIMAL(5,2) NOT NULL,
                 analysis_details TEXT,
                 token_usage INT DEFAULT 0,
                 cost DECIMAL(10,2) DEFAULT 0.00,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE KEY idx_code_date (code, end_date)
+                chat_completion_id VARCHAR(100) NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         ''')
+        
+        # 移除wyckoff_analysis表的唯一键约束（如果存在）
+        try:
+            cursor.execute('''
+                ALTER TABLE wyckoff_analysis DROP INDEX IF EXISTS idx_code_date;
+            ''')
+            print("移除wyckoff_analysis表的唯一键约束成功")
+        except Exception as e:
+            print(f"移除唯一键约束失败: {str(e)}")
+        
+        # 为已有的wyckoff_analysis表添加chat_completion_id字段
+        try:
+            cursor.execute('''
+                ALTER TABLE wyckoff_analysis ADD COLUMN IF NOT EXISTS chat_completion_id VARCHAR(100) NULL;
+            ''')
+            print("为wyckoff_analysis表添加chat_completion_id字段成功")
+        except Exception as e:
+            print(f"添加chat_completion_id字段失败: {str(e)}")
+        
+        # 移除analysis_log_id字段（如果存在）
+        try:
+            cursor.execute('''
+                ALTER TABLE wyckoff_analysis DROP COLUMN IF EXISTS analysis_log_id;
+            ''')
+            print("从wyckoff_analysis表移除analysis_log_id字段成功")
+        except Exception as e:
+            print(f"移除analysis_log_id字段失败: {str(e)}")
+        
+        # 移除外键约束（如果存在）
+        try:
+            cursor.execute('''
+                ALTER TABLE wyckoff_analysis DROP FOREIGN KEY IF EXISTS fk_analysis_log;
+            ''')
+            print("从wyckoff_analysis表移除外键约束成功")
+        except Exception as e:
+            print(f"移除外键约束失败: {str(e)}")
+        
+        # 修改字段长度
+        try:
+            cursor.execute('''
+                ALTER TABLE wyckoff_analysis MODIFY COLUMN trend VARCHAR(200) NOT NULL;
+            ''')
+            print("修改wyckoff_analysis表trend字段长度成功")
+        except Exception as e:
+            print(f"修改trend字段长度失败: {str(e)}")
+        
+        try:
+            cursor.execute('''
+                ALTER TABLE wyckoff_analysis MODIFY COLUMN volume_pattern VARCHAR(200) NOT NULL;
+            ''')
+            print("修改wyckoff_analysis表volume_pattern字段长度成功")
+        except Exception as e:
+            print(f"修改volume_pattern字段长度失败: {str(e)}")
+        
+        try:
+            cursor.execute('''
+                ALTER TABLE wyckoff_analysis MODIFY COLUMN trade_signal VARCHAR(50) NOT NULL;
+            ''')
+            print("修改wyckoff_analysis表trade_signal字段长度成功")
+        except Exception as e:
+            print(f"修改trade_signal字段长度失败: {str(e)}")
         
         # 创建系统配置表
         cursor.execute('''
@@ -129,21 +189,20 @@ def init_database():
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         ''')
         
-        # 为现有表添加parent字段（如果不存在）
-        try:
-            # 先检查parent字段是否存在
-            cursor.execute('''
-                SHOW COLUMNS FROM system_config LIKE 'parent'
-            ''')
-            if cursor.rowcount == 0:
-                # 字段不存在，添加字段
-                cursor.execute('''
-                    ALTER TABLE system_config
-                    ADD COLUMN parent INT DEFAULT 0
-                ''')
-                print("添加parent字段成功")
-        except Exception as e:
-            print(f"添加parent字段失败: {str(e)}")
+        # 创建分析日志表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS analysis_log (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                code VARCHAR(10) NOT NULL,
+                name VARCHAR(50) NOT NULL,
+                start_date DATE NULL,
+                end_date DATE NULL,
+                prompt TEXT NOT NULL,
+                response TEXT NOT NULL,
+                chat_completion_id VARCHAR(100) NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        ''')
         
         # 从初始化配置文件读取默认配置数据
         init_config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'init_config.json')
@@ -294,7 +353,75 @@ def save_stock_history_to_db(history_data: List[Dict[str, Any]]):
         print(f"数据库保存失败: {str(e)}")
 
 
-def save_wyckoff_analysis_to_db(analysis: Dict[str, Any]):
+def parse_price_value(value):
+    """解析价格值，提取数字部分"""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return value
+    if isinstance(value, list):
+        # 如果是列表，取第一个元素
+        if value:
+            return parse_price_value(value[0])
+        return None
+    if isinstance(value, str):
+        # 提取数字部分
+        import re
+        # 匹配数字，包括小数点
+        matches = re.findall(r'\d+\.?\d*', value)
+        if matches:
+            try:
+                return float(matches[0])
+            except:
+                return None
+    return None
+
+
+def save_analysis_log(log_data: Dict[str, Any]) -> int:
+    """保存分析日志到数据库"""
+    if not check_db_connection():
+        return 0
+    try:
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                # 验证日志数据
+                required_fields = ['code', 'name', 'prompt', 'response']
+                for field in required_fields:
+                    if field not in log_data:
+                        print(f"日志数据缺少必要字段: {field}")
+                        return 0
+                
+                # 准备参数
+                params = (
+                    log_data['code'],
+                    log_data['name'],
+                    log_data.get('start_date'),
+                    log_data.get('end_date'),
+                    log_data['prompt'],
+                    log_data['response'],
+                    log_data.get('chat_completion_id')
+                )
+                
+                # 插入日志数据
+                sql = '''
+                    INSERT INTO analysis_log 
+                    (code, name, start_date, end_date, prompt, response, chat_completion_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                '''
+                
+                cursor.execute(sql, params)
+                conn.commit()
+                
+                # 返回插入的日志ID
+                return cursor.lastrowid
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"保存分析日志失败: {str(e)}")
+        return 0
+
+def save_wyckoff_analysis_to_db(analysis: Dict[str, Any], chat_completion_id: str = ''):
     """保存威科夫分析结果到数据库"""
     if not check_db_connection():
         return
@@ -302,41 +429,117 @@ def save_wyckoff_analysis_to_db(analysis: Dict[str, Any]):
         conn = get_db_connection()
         try:
             with conn.cursor() as cursor:
-                sql = '''
-                    INSERT INTO wyckoff_analysis 
-                    (code, name, start_date, end_date, trend, volume_pattern, support_level, resistance_level, trade_signal, confidence, analysis_details, token_usage, cost)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON DUPLICATE KEY UPDATE
-                        trend = VALUES(trend),
-                        volume_pattern = VALUES(volume_pattern),
-                        support_level = VALUES(support_level),
-                        resistance_level = VALUES(resistance_level),
-                        trade_signal = VALUES(trade_signal),
-                        confidence = VALUES(confidence),
-                        analysis_details = VALUES(analysis_details),
-                        token_usage = VALUES(token_usage),
-                        cost = VALUES(cost)
-                '''
-                cursor.execute(sql, (
-                    analysis['code'],
-                    analysis['name'],
-                    analysis.get('start_date'),
-                    analysis['end_date'],
-                    analysis['trend'],
-                    analysis['volume_pattern'],
-                    analysis.get('support_level'),
-                    analysis.get('resistance_level'),
-                    analysis['signal'],
-                    analysis['confidence'],
-                    json.dumps(analysis['analysis_details'], ensure_ascii=False),
-                    analysis.get('token_usage', 0),
-                    analysis.get('cost', 0.00)
-                ))
+                # 验证分析数据
+                required_fields = ['code', 'name', 'end_date', 'trend', 'volume_pattern', 'signal', 'confidence', 'analysis_details']
+                for field in required_fields:
+                    if field not in analysis:
+                        print(f"分析数据缺少必要字段: {field}")
+                        return
+                
+                # 解析价格值
+                support_level = parse_price_value(analysis.get('support_level'))
+                resistance_level = parse_price_value(analysis.get('resistance_level'))
+                
+                # 确保confidence是标量值
+                confidence = analysis['confidence']
+                if isinstance(confidence, (list, dict)):
+                    confidence = 0.5  # 默认值
+                
+                # 确保analysis_details是可序列化的
+                analysis_details = analysis['analysis_details']
+                if isinstance(analysis_details, str):
+                    # 如果已经是字符串，直接使用
+                    analysis_details_str = analysis_details
+                else:
+                    # 否则序列化
+                    analysis_details_str = json.dumps(analysis_details, ensure_ascii=False)
+                
+                # 检查是否已存在相同chat_completion_id的记录
+                if chat_completion_id:
+                    cursor.execute('''
+                        SELECT id FROM wyckoff_analysis WHERE chat_completion_id = %s
+                    ''', (chat_completion_id,))
+                    existing_id = cursor.fetchone()
+                    
+                    if existing_id:
+                        # 如果存在，更新记录
+                        params = (
+                            analysis['trend'],
+                            analysis['volume_pattern'],
+                            support_level,
+                            resistance_level,
+                            analysis['signal'],
+                            confidence,
+                            analysis_details_str,
+                            analysis.get('token_usage', 0),
+                            analysis.get('cost', 0.00),
+                            chat_completion_id
+                        )
+                        sql = '''
+                            UPDATE wyckoff_analysis 
+                            SET trend = %s, volume_pattern = %s, support_level = %s, 
+                                resistance_level = %s, trade_signal = %s, confidence = %s, 
+                                analysis_details = %s, token_usage = %s, cost = %s
+                            WHERE chat_completion_id = %s
+                        '''
+                        cursor.execute(sql, params)
+                        print(f"更新威科夫分析结果成功，chat_completion_id: {chat_completion_id}")
+                    else:
+                        # 如果不存在，插入新记录
+                        params = (
+                            analysis['code'],
+                            analysis['name'],
+                            analysis.get('start_date'),
+                            analysis['end_date'],
+                            analysis['trend'],
+                            analysis['volume_pattern'],
+                            support_level,
+                            resistance_level,
+                            analysis['signal'],
+                            confidence,
+                            analysis_details_str,
+                            analysis.get('token_usage', 0),
+                            analysis.get('cost', 0.00),
+                            chat_completion_id
+                        )
+                        sql = '''
+                            INSERT INTO wyckoff_analysis 
+                            (code, name, start_date, end_date, trend, volume_pattern, support_level, resistance_level, trade_signal, confidence, analysis_details, token_usage, cost, chat_completion_id)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        '''
+                        cursor.execute(sql, params)
+                        print(f"插入威科夫分析结果成功，chat_completion_id: {chat_completion_id}")
+                else:
+                    # 没有chat_completion_id，直接插入新记录
+                    params = (
+                        analysis['code'],
+                        analysis['name'],
+                        analysis.get('start_date'),
+                        analysis['end_date'],
+                        analysis['trend'],
+                        analysis['volume_pattern'],
+                        support_level,
+                        resistance_level,
+                        analysis['signal'],
+                        confidence,
+                        analysis_details_str,
+                        analysis.get('token_usage', 0),
+                        analysis.get('cost', 0.00),
+                        chat_completion_id
+                    )
+                    sql = '''
+                        INSERT INTO wyckoff_analysis 
+                        (code, name, start_date, end_date, trend, volume_pattern, support_level, resistance_level, trade_signal, confidence, analysis_details, token_usage, cost, chat_completion_id)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    '''
+                    cursor.execute(sql, params)
+                    print(f"插入威科夫分析结果成功，无chat_completion_id")
             conn.commit()
         finally:
             conn.close()
     except Exception as e:
         print(f"保存威科夫分析结果失败: {str(e)}")
+        print(f"分析数据: {analysis}")
 
 
 def get_analysis_history(code: str = None, page: int = 1, page_size: int = 10, search: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
@@ -353,8 +556,12 @@ def get_analysis_history(code: str = None, page: int = 1, page_size: int = 10, s
                 params = []
                 
                 if code:
-                    where_clauses.append("code = %s")
-                    params.append(code)
+                    # 提取股票代码的纯数字部分，处理带前缀的情况
+                    import re
+                    pure_code = re.sub(r'^[a-z]+\.', '', code, flags=re.IGNORECASE)
+                    where_clauses.append("(code = %s OR code = %s)")
+                    params.extend([code, pure_code])
+                    print(f"查询股票代码: {code}, 纯数字代码: {pure_code}")
                 
                 if search:
                     where_clauses.append("(code LIKE %s OR name LIKE %s)")
@@ -369,7 +576,6 @@ def get_analysis_history(code: str = None, page: int = 1, page_size: int = 10, s
                     params.append(end_date)
                 
                 where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
-                
                 # 获取总数
                 count_sql = f"SELECT COUNT(*) FROM wyckoff_analysis WHERE {where_clause}"
                 cursor.execute(count_sql, params)
@@ -378,15 +584,16 @@ def get_analysis_history(code: str = None, page: int = 1, page_size: int = 10, s
                 # 获取分页数据
                 offset = (page - 1) * page_size
                 query_params = params + [page_size, offset]
-                cursor.execute(f'''
+                query_sql = f'''
                     SELECT id, code, name, start_date, end_date, trend, volume_pattern, 
                            support_level, resistance_level, trade_signal, confidence, 
-                           analysis_details, token_usage, cost, created_at
+                           analysis_details, token_usage, cost, chat_completion_id, created_at
                     FROM wyckoff_analysis
                     WHERE {where_clause}
                     ORDER BY created_at DESC
                     LIMIT %s OFFSET %s
-                ''', query_params)
+                '''
+                cursor.execute(query_sql, query_params)
                 rows = cursor.fetchall()
                 
                 # 格式化数据 - 使用元组索引访问
@@ -399,6 +606,8 @@ def get_analysis_history(code: str = None, page: int = 1, page_size: int = 10, s
                             analysis_details = json.loads(row[11])
                         except Exception as e:
                             print(f"解析 analysis_details 失败: {str(e)}")
+                            # 如果解析失败，直接使用原始字符串
+                            analysis_details = row[11]
                     
                     items.append({
                         "id": row[0],
@@ -411,11 +620,12 @@ def get_analysis_history(code: str = None, page: int = 1, page_size: int = 10, s
                         "support_level": row[7],
                         "resistance_level": row[8],
                         "signal": row[9],
-                        "confidence": float(row[10]),
+                        "confidence": float(row[10]) if row[10] is not None else 0.0,
                         "analysis_details": analysis_details,
                         "token_usage": row[12] if len(row) > 12 else 0,
-                        "cost": float(row[13]) if len(row) > 13 else 0.00,
-                        "created_at": str(row[14])
+                        "cost": float(row[13]) if len(row) > 13 and row[13] is not None else 0.00,
+                        "chat_completion_id": row[14] if len(row) > 14 else '',
+                        "created_at": str(row[15]) if len(row) > 15 else str(row[14])
                     })
                 
                 return {
@@ -427,15 +637,133 @@ def get_analysis_history(code: str = None, page: int = 1, page_size: int = 10, s
         finally:
             conn.close()
     except Exception as e:
-        print(f"获取分析历史失败: {str(e)}")
+        print(f"get_analysis_history获取分析历史失败: {str(e)}")
         return {"total": 0, "page": page, "page_size": page_size, "items": []}
+
+
+def get_analysis_logs(code: str = None, page: int = 1, page_size: int = 10, search: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
+    """获取分析日志记录"""
+    if not check_db_connection():
+        return {"total": 0, "page": page, "page_size": page_size, "items": []}
+    
+    try:
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                # 构建查询条件
+                where_clauses = []
+                params = []
+                
+                if code:
+                    # 提取股票代码的纯数字部分，处理带前缀的情况
+                    import re
+                    pure_code = re.sub(r'^[a-z]+\.', '', code, flags=re.IGNORECASE)
+                    where_clauses.append("(code = %s OR code = %s)")
+                    params.extend([code, pure_code])
+                
+                if search:
+                    where_clauses.append("(code LIKE %s OR name LIKE %s)")
+                    params.extend([f'%{search}%', f'%{search}%'])
+                
+                if start_date:
+                    where_clauses.append("created_at >= %s")
+                    params.append(f"{start_date} 00:00:00")
+                
+                if end_date:
+                    where_clauses.append("created_at <= %s")
+                    params.append(f"{end_date} 23:59:59")
+                
+                where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
+                
+                # 获取总数
+                count_sql = f"SELECT COUNT(*) FROM analysis_log WHERE {where_clause}"
+                cursor.execute(count_sql, params)
+                total = cursor.fetchone()[0]
+                
+                # 获取分页数据
+                offset = (page - 1) * page_size
+                query_params = params + [page_size, offset]
+                cursor.execute(f'''
+                    SELECT id, code, name, start_date, end_date, prompt, response, 
+                           chat_completion_id, created_at
+                    FROM analysis_log
+                    WHERE {where_clause}
+                    ORDER BY created_at DESC
+                    LIMIT %s OFFSET %s
+                ''', query_params)
+                rows = cursor.fetchall()
+                
+                # 格式化数据
+                items = []
+                for row in rows:
+                    items.append({
+                        "id": row[0],
+                        "code": row[1],
+                        "name": row[2],
+                        "start_date": str(row[3]) if row[3] else None,
+                        "end_date": str(row[4]) if row[4] else None,
+                        "prompt": row[5],
+                        "response": row[6],
+                        "chat_completion_id": row[7] if len(row) > 7 else '',
+                        "created_at": str(row[8]) if len(row) > 8 else str(row[7])
+                    })
+                
+                return {
+                    "total": total,
+                    "page": page,
+                    "page_size": page_size,
+                    "items": items
+                }
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"获取分析日志失败: {str(e)}")
+        return {"total": 0, "page": page, "page_size": page_size, "items": []}
+
+
+def get_analysis_log_by_id(log_id: int) -> Dict[str, Any]:
+    """根据ID获取分析日志"""
+    if not check_db_connection():
+        return {}
+    
+    try:
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute('''
+                    SELECT id, code, name, start_date, end_date, prompt, response, 
+                           chat_completion_id, created_at
+                    FROM analysis_log
+                    WHERE id = %s
+                ''', (log_id,))
+                row = cursor.fetchone()
+                
+                if not row:
+                    return {}
+                
+                return {
+                    "id": row[0],
+                    "code": row[1],
+                    "name": row[2],
+                    "start_date": str(row[3]) if row[3] else None,
+                    "end_date": str(row[4]) if row[4] else None,
+                    "prompt": row[5],
+                    "response": row[6],
+                    "chat_completion_id": row[7] if len(row) > 7 else '',
+                    "created_at": str(row[8]) if len(row) > 8 else str(row[7])
+                }
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"获取分析日志失败: {str(e)}")
+        return {}
 
 
 def get_screening_history(limit: int = 50) -> Dict[str, Any]:
     """获取筛选历史记录"""
     if not check_db_connection():
         return {"message": "数据库不可用", "records": []}
-    
+    print(f"获取筛选历史记录，limit: {limit}")
     try:
         conn = get_db_connection()
         try:
@@ -523,22 +851,22 @@ def get_hs300_stocks_from_db(page: int = 1, page_size: int = 10, search: str = N
         return {"total": 0, "items": []}
 
 
-def get_config_value(key: str) -> str:
+def get_config_value(key: str, default=None) -> str:
     """获取系统配置值"""
     if not check_db_connection():
-        return None
+        return default
     try:
         conn = get_db_connection()
         try:
             with conn.cursor() as cursor:
                 cursor.execute('SELECT config_value FROM system_config WHERE config_key = %s', (key,))
                 result = cursor.fetchone()
-                return result[0] if result else None
+                return result[0] if result else default
         finally:
             conn.close()
     except Exception as e:
         print(f"获取配置失败: {str(e)}")
-        return None
+        return default
 
 
 def update_config_value(key: str, value: str, description: str = None) -> bool:

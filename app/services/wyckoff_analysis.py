@@ -57,7 +57,7 @@ def single_stock_analysis(code: str, start_date: str, end_date: str) -> Any:
     # 获取股票名称
     stock_name = get_stock_name_from_db(code)
     if not stock_name:
-        stock_name = "未知"
+        raise HTTPException(status_code=404, detail=f"股票代码 {code} 不存在或未在数据库中")
     
     # 准备分析数据
     analysis_data = {
@@ -82,7 +82,8 @@ def single_stock_analysis(code: str, start_date: str, end_date: str) -> Any:
     analysis_result = analyze_with_qwen(analysis_data)
     
     # 保存分析结果到数据库
-    save_wyckoff_analysis_to_db(analysis_result)
+    chat_completion_id = analysis_result.get('chat_completion_id', '')
+    save_wyckoff_analysis_to_db(analysis_result, chat_completion_id)
     
     # 转换为Pydantic模型
     from app.schemas import WyckoffAnalysis

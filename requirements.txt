@@ -6,3 +6,4 @@ pydantic-settings==2.1.0
 python-dotenv==1.0.0
 baostock==0.8.8
 requests==2.31.0
+openai==1.35.14

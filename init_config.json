@@ -17,7 +17,7 @@
     "model_configs": [
       {
         "config_key": "qwen_api_key",
-        "config_value": "sk-",
+        "config_value": "请填写你的Qwen API密钥",
         "description": "Qwen API 密钥",
         "parent": "qwen_model"
       },
