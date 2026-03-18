@@ -3,7 +3,6 @@
 股票数据相关操作模块
 """
 
-import json
 from app.db.connection import get_db_connection, check_db_connection
 
 
@@ -217,7 +216,7 @@ def get_stock_history_from_db(code: str, start_date: str = None, end_date: str =
         conn = get_db_connection()
         try:
             with conn.cursor() as cursor:
-                where_clause = "sh.code = %s"
+                where_clause = "s.code = %s"
                 params = [code]
                 
                 if start_date:
@@ -229,12 +228,14 @@ def get_stock_history_from_db(code: str, start_date: str = None, end_date: str =
                     params.append(end_date)
                 
                 sql = f'''
-                    SELECT sh.date, sh.code, s.name, sh.open, sh.high, sh.low, sh.close, sh.volume, sh.amount
+                    SELECT sh.date, s.code, s.name, sh.open, sh.high, sh.low, sh.close, sh.volume, sh.amount
                     FROM stock_history sh
                     JOIN stocks s ON sh.stock_id = s.id
                     WHERE {where_clause}
                     ORDER BY sh.date
                 '''
+                print(params)
+                print(f"执行SQL: {sql}")
                 cursor.execute(sql, params)
                 rows = cursor.fetchall()
                 

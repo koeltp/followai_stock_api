@@ -94,8 +94,7 @@ def get_analysis_logs(code: str = None, page: int = 1, page_size: int = 10, sear
                 offset = (page - 1) * page_size
                 query_params = params + [page_size, offset]
                 cursor.execute(f'''
-                    SELECT al.id, s.code, s.name, al.start_date, al.end_date, al.prompt, al.response, 
-                           al.chat_completion_id, al.created_at
+                    SELECT al.id, s.code, s.name, al.start_date, al.end_date, al.prompt, al.response, al.chat_completion_id, al.created_at
                     FROM analysis_log al
                     JOIN stocks s ON al.stock_id = s.id
                     WHERE {where_clause}
@@ -141,8 +140,7 @@ def get_analysis_log_by_id(log_id: int) -> dict:
         try:
             with conn.cursor() as cursor:
                 cursor.execute('''
-                    SELECT al.id, s.code, s.name, al.start_date, al.end_date, al.prompt, al.response, 
-                           al.chat_completion_id, al.created_at
+                    SELECT al.id, s.code, s.name, al.start_date, al.end_date, al.prompt, al.response, al.chat_completion_id, al.created_at
                     FROM analysis_log al
                     JOIN stocks s ON al.stock_id = s.id
                     WHERE al.id = %s

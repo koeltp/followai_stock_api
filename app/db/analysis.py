@@ -25,17 +25,8 @@ def save_wyckoff_analysis_to_db(analysis: dict, chat_completion_id: str = ''):
                     return
                 stock_id = result['id']
                 
-                # 检查是否已有相同的分析记录
-                start_date = analysis.get('start_date')
-                end_date = analysis.get('end_date')
-                cursor.execute('''
-                    SELECT id FROM wyckoff_analysis 
-                    WHERE stock_id = %s AND start_date = %s AND end_date = %s
-                ''', (stock_id, start_date, end_date))
-                existing = cursor.fetchone()
-                if existing:
-                    print(f"已存在相同的分析记录，ID: {existing['id']}")
-                    return
+                # 直接保存分析记录，不检查重复
+                # 每次分析都保存，即使时间范围相同
                 
                 # 处理 support_level 和 resistance_level
                 support_level = analysis.get('support_level')
@@ -60,95 +51,80 @@ def save_wyckoff_analysis_to_db(analysis: dict, chat_completion_id: str = ''):
                 analysis_details = analysis.get('analysis_details', {})
                 analysis_details_str = json.dumps(analysis_details, ensure_ascii=False)
                 
-                if chat_completion_id:
-                    # 检查是否已有相同 chat_completion_id 的记录
-                    cursor.execute('''
-                        SELECT id FROM wyckoff_analysis 
-                        WHERE chat_completion_id = %s
-                    ''', (chat_completion_id,))
-                    existing = cursor.fetchone()
-                    if existing:
-                        # 更新现有记录
-                        params = (
-                            stock_id,
-                            analysis.get('start_date'),
-                            analysis['end_date'],
-                            analysis['trend'],
-                            analysis['volume_pattern'],
-                            support_level,
-                            resistance_level,
-                            analysis['signal'],
-                            confidence,
-                            analysis_details_str,
-                            analysis.get('token_usage', 0),
-                            analysis.get('cost', 0.00),
-                            chat_completion_id,
-                            existing['id']
-                        )
-                        sql = '''
-                            UPDATE wyckoff_analysis 
-                            SET stock_id = %s, start_date = %s, end_date = %s, trend = %s, 
-                                volume_pattern = %s, support_level = %s, resistance_level = %s, 
-                                trade_signal = %s, confidence = %s, analysis_details = %s, 
-                                token_usage = %s, cost = %s, chat_completion_id = %s
-                            WHERE id = %s
-                        '''
-                        cursor.execute(sql, params)
-                        print(f"更新威科夫分析结果成功，chat_completion_id: {chat_completion_id}")
-                    else:
-                        # 如果不存在，插入新记录
-                        params = (
-                            stock_id,
-                            analysis.get('start_date'),
-                            analysis['end_date'],
-                            analysis['trend'],
-                            analysis['volume_pattern'],
-                            support_level,
-                            resistance_level,
-                            analysis['signal'],
-                            confidence,
-                            analysis_details_str,
-                            analysis.get('token_usage', 0),
-                            analysis.get('cost', 0.00),
-                            chat_completion_id
-                        )
-                        sql = '''
-                            INSERT INTO wyckoff_analysis 
-                            (stock_id, start_date, end_date, trend, volume_pattern, support_level, resistance_level, trade_signal, confidence, analysis_details, token_usage, cost, chat_completion_id)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        '''
-                        cursor.execute(sql, params)
-                        print(f"插入威科夫分析结果成功，chat_completion_id: {chat_completion_id}")
+                # 检查是否已有相同 chat_completion_id 的记录
+                cursor.execute('''
+                    SELECT id FROM wyckoff_analysis 
+                    WHERE chat_completion_id = %s
+                ''', (chat_completion_id,))
+                existing = cursor.fetchone()
+                if existing:
+                    # 更新现有记录
+                    update_wyckoff_analysis(cursor, stock_id, analysis, support_level, resistance_level, confidence, analysis_details_str, chat_completion_id, existing['id'])
+                    print(f"更新威科夫分析结果成功，chat_completion_id: {chat_completion_id}")
                 else:
-                    # 没有chat_completion_id，直接插入新记录
-                    params = (
-                        stock_id,
-                        analysis.get('start_date'),
-                        analysis['end_date'],
-                        analysis['trend'],
-                        analysis['volume_pattern'],
-                        support_level,
-                        resistance_level,
-                        analysis['signal'],
-                        confidence,
-                        analysis_details_str,
-                        analysis.get('token_usage', 0),
-                        analysis.get('cost', 0.00),
-                        chat_completion_id
-                    )
-                    sql = '''
-                        INSERT INTO wyckoff_analysis 
-                        (stock_id, start_date, end_date, trend, volume_pattern, support_level, resistance_level, trade_signal, confidence, analysis_details, token_usage, cost, chat_completion_id)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    '''
-                    cursor.execute(sql, params)
-                    print(f"插入威科夫分析结果成功，无chat_completion_id")
+                    # 如果不存在，插入新记录
+                    insert_wyckoff_analysis(cursor, stock_id, analysis, support_level, resistance_level, confidence, analysis_details_str, chat_completion_id)
+                    print(f"插入威科夫分析结果成功，chat_completion_id: {chat_completion_id}")
             conn.commit()
         finally:
             conn.close()
     except Exception as e:
         print(f"保存威科夫分析结果失败: {str(e)}")
         print(f"分析数据: {analysis}")
+
+
+def insert_wyckoff_analysis(cursor, stock_id, analysis, support_level, resistance_level, confidence, analysis_details_str, chat_completion_id):
+    """插入威科夫分析结果"""
+    params = (
+        stock_id,
+        analysis.get('start_date'),
+        analysis['end_date'],
+        analysis['trend'],
+        analysis['volume_pattern'],
+        support_level,
+        resistance_level,
+        analysis['signal'],
+        confidence,
+        analysis_details_str,
+        analysis.get('token_usage', 0),
+        analysis.get('cost', 0.00),
+        chat_completion_id
+    )
+    sql = '''
+        INSERT INTO wyckoff_analysis 
+        (stock_id, start_date, end_date, trend, volume_pattern, support_level, resistance_level, trade_signal, confidence, analysis_details, token_usage, cost, chat_completion_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    '''
+    cursor.execute(sql, params)
+
+
+def update_wyckoff_analysis(cursor, stock_id, analysis, support_level, resistance_level, confidence, analysis_details_str, chat_completion_id, analysis_id):
+    """更新威科夫分析结果"""
+    params = (
+        stock_id,
+        analysis.get('start_date'),
+        analysis['end_date'],
+        analysis['trend'],
+        analysis['volume_pattern'],
+        support_level,
+        resistance_level,
+        analysis['signal'],
+        confidence,
+        analysis_details_str,
+        analysis.get('token_usage', 0),
+        analysis.get('cost', 0.00),
+        chat_completion_id,
+        analysis_id
+    )
+    sql = '''
+        UPDATE wyckoff_analysis 
+        SET stock_id = %s, start_date = %s, end_date = %s, trend = %s, 
+            volume_pattern = %s, support_level = %s, resistance_level = %s, 
+            trade_signal = %s, confidence = %s, analysis_details = %s, 
+            token_usage = %s, cost = %s, chat_completion_id = %s
+        WHERE id = %s
+    '''
+    cursor.execute(sql, params)
 
 
 def get_analysis_history(code: str = None, page: int = 1, page_size: int = 10, search: str = None, start_date: str = None, end_date: str = None, market: str = None) -> dict:
