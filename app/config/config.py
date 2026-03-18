@@ -71,7 +71,7 @@ class ConfigManager:
         if self._qwen_api_config is not None:
             return self._qwen_api_config
         
-        from app.db.database import get_config_value
+        from app.db.config import get_config_value
         
         api_key = get_config_value('qwen_api_key', '')
         base_url = get_config_value('qwen_base_url', '')
@@ -93,7 +93,7 @@ class ConfigManager:
     
     def get_longport_config(self) -> Dict[str, Any]:
         """从数据库获取LongPort配置"""
-        from app.db.database import get_config_value
+        from app.db.config import get_config_value
         
         app_key = get_config_value('longport_app_key', '')
         app_secret = get_config_value('longport_app_secret', '')

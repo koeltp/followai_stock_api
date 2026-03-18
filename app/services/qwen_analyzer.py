@@ -8,7 +8,8 @@ import re
 from typing import Dict, Any
 from openai import OpenAI
 from app.config import get_qwen_api_config
-from app.db.database import get_config_value, save_analysis_log
+from app.db.config import get_config_value
+from app.db.analysis_log import save_analysis_log
 
 
 def calculate_cost(token_usage: Dict[str, int]) -> float:

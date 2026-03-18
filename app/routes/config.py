@@ -24,14 +24,14 @@ def get_config_endpoint():
 def update_config_endpoint(config: dict):
     """更新系统配置"""
     try:
-        config_key = config.get('config_key')
-        config_value = config.get('config_value')
+        key_name = config.get('key_name')
+        key_value = config.get('key_value')
         description = config.get('description')
         
-        if not config_key or config_value is None:
+        if not key_name or key_value is None:
             raise HTTPException(status_code=400, detail="配置键和值不能为空")
         
-        success = update_config_value(config_key, config_value, description)
+        success = update_config_value(key_name, key_value, description)
         if success:
             return {"message": "配置更新成功"}
         else:

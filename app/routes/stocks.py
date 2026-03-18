@@ -41,7 +41,7 @@ def get_hs300_stocks_endpoint(page: int = 1, page_size: int = 10, search: str = 
                 "total": result["total"],
                 "page": result["page"],
                 "page_size": result["page_size"],
-                "items": [{"code": stock['code'], "name": stock['name']} for stock in result["items"]]
+                "items": [{"id": stock['id'], "code": stock['code'], "name": stock['name']} for stock in result["items"]]
             }
         else:
             return {
@@ -58,7 +58,7 @@ def get_hs300_stocks_endpoint(page: int = 1, page_size: int = 10, search: str = 
 def get_stock_list(page: int = 1, page_size: int = 10, search: str = None, market: str = None):
     """获取所有股票列表（支持分页和搜索）"""
     try:
-        from app.db.database import get_all_stocks_from_db
+        from app.db.stock import get_all_stocks_from_db
         if search:
             search = search.strip()
         result = get_all_stocks_from_db(page, page_size, search, market)
@@ -82,6 +82,24 @@ def add_stock(request: AddStockRequest):
         elif market_type == 'HK':
             if not code.endswith('.HK'):
                 code = f"{code}.HK"
+        elif market_type == 'A':
+            # 自动判断并添加 sh. 或 sz. 前缀
+            if not (code.startswith('sh.') or code.startswith('sz.')):
+                # 移除可能的空格
+                code = code.strip()
+                # 判断股票代码类型
+                if code.startswith('6'):
+                    # 上海股票
+                    code = f"sh.{code}"
+                elif code.startswith('0') or code.startswith('3'):
+                    # 深圳股票
+                    code = f"sz.{code}"
+                else:
+                    # 无法判断，返回错误
+                    return {
+                        'success': False,
+                        'message': '无法判断A股股票代码类型，请使用 sh. 或 sz. 前缀'
+                    }
         
         stock_data = {
             'code': code,
@@ -105,7 +123,23 @@ def sync_stock(request: SyncStockRequest):
     """同步股票历史数据"""
     try:
         if request.market_type == 'A':
-            history = get_a_stock_history(request.code, request.start_date, request.end_date)
+            # 验证 A 股股票代码格式
+            code = request.code
+            if not (code.startswith('sh.') or code.startswith('sz.')):
+                return {
+                    'success': False,
+                    'message': 'A股股票代码格式错误，请使用 sh. 或 sz. 前缀'
+                }
+            
+            # 检查代码长度
+            code_part = code.split('.')[1]
+            if len(code_part) != 6:
+                return {
+                    'success': False,
+                    'message': '股票代码应为9位，请检查。格式示例：sh.600000'
+                }
+            
+            history = get_a_stock_history(code, request.start_date, request.end_date)
             if history:
                 return {
                     'success': True,

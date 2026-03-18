@@ -9,6 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routes import router
 from app.config import APP_CONFIG, CORS_CONFIG
 from app.tasks import setup_scheduler, run_scheduler
+from app.db import init_database
+
+# 初始化数据库
+print("初始化数据库...")
+init_database()
+print("数据库初始化完成")
 
 # 创建FastAPI应用实例
 app = FastAPI(
