@@ -165,18 +165,9 @@ def get_analysis_history(code: str = None, page: int = 1, page_size: int = 10, s
                 params = []
                 
                 if code:
-                    # 提取股票代码的纯数字部分，只处理 A 股的情况（sh. 或 sz. 开头）
-                    if code.lower().startswith(('sh.', 'sz.')):
-                        # 对于 A 股，提取纯数字部分
-                        pure_code = re.sub(r'^[a-z]+\.', '', code, flags=re.IGNORECASE)
-                        where_clauses.append("(s.code = %s OR s.code = %s)")
-                        params.extend([code, pure_code])
-                        print(f"查询股票代码: {code}, 纯数字代码: {pure_code}")
-                    else:
-                        # 对于美股和港股，直接使用完整代码
-                        where_clauses.append("s.code = %s")
-                        params.append(code)
-                        print(f"查询股票代码: {code}")
+                    # 直接使用股票代码查询
+                    where_clauses.append("s.code = %s")
+                    params.append(code)
                 
                 if search:
                     where_clauses.append("(s.code LIKE %s OR s.name LIKE %s)")
@@ -191,16 +182,9 @@ def get_analysis_history(code: str = None, page: int = 1, page_size: int = 10, s
                     params.append(end_date)
                 
                 if market:
-                    # 根据市场类型过滤股票代码
-                    if market == 'A':
-                        # A股代码格式：sh.600000 或 sz.000000 或纯数字
-                        where_clauses.append("(s.code LIKE 'sh.%' OR s.code LIKE 'sz.%' OR s.code REGEXP '^[0-9]{6}$')")
-                    elif market == 'HK':
-                        # 港股代码格式：HK.00001
-                        where_clauses.append("s.code LIKE 'HK.%'")
-                    elif market == 'US':
-                        # 美股代码格式：US.AAPL 或纯字母
-                        where_clauses.append("(s.code LIKE 'US.%' OR s.code REGEXP '^[A-Za-z]+$')")
+                    # 直接使用 market_type 字段过滤
+                    where_clauses.append("s.market_type = %s")
+                    params.append(market)
                 
                 where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
                 # 获取总数
