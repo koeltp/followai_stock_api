@@ -18,11 +18,12 @@
 
 ### 主要功能
 
-- 沪深300成分股数据获取与管理
+- 多市场股票数据获取与管理（A股、美股、港股）
 - 基于威科夫操盘法的单只股票深度分析
 - 利用 AI 模型进行智能选股和筛选
 - 分析历史记录管理和查询
 - 系统配置管理和优化
+- 股票历史数据同步与管理
 
 ## 项目结构
 
@@ -31,13 +32,24 @@ api/
 ├── app/             # 应用主目录
 │   ├── config/      # 配置管理
 │   ├── db/          # 数据库操作
-│   ├── models/      # 数据模型
+│   │   ├── analysis.py        # 分析历史相关操作
+│   │   ├── analysis_log.py    # 分析日志相关操作
+│   │   ├── config.py          # 系统配置相关操作
+│   │   ├── connection.py      # 数据库连接管理
+│   │   ├── schema.py          # 表结构定义和初始化
+│   │   ├── stock.py           # 股票数据相关操作
+│   │   └── utils.py           # 辅助函数
 │   ├── routes/      # API 路由
 │   ├── schemas/     # 数据验证模式
 │   ├── services/    # 业务逻辑
+│   │   ├── baostock_client.py  # 宝信数据客户端
+│   │   ├── longport_client.py  # LongPort数据客户端（美股/港股）
+│   │   ├── qwen_analyzer.py    # 千问大模型分析器
+│   │   └── wyckoff_analysis.py # 威科夫分析逻辑
+│   ├── sql/         # SQL脚本
+│   │   └── system_config.sql   # 系统配置初始化脚本
 │   └── tasks/       # 定时任务
 ├── config.json      # 主配置文件
-├── init_config.json # 初始化配置文件
 ├── main.py          # 应用入口
 └── requirements.txt # 依赖包
 ```
@@ -82,19 +94,21 @@ pip install -r requirements.txt
 
 ### 4. 配置文件
 
-1. **初始化配置文件**：`init_config.json` 是项目初始化时使用的配置文件，用于初始化数据库，初始化完成后不再使用。
-
-   主要需要配置以下项：
-   - `qwen_api_key`：Qwen API 密钥，需要去 [阿里云百炼控制台](https://bailian.console.aliyun.com/#/home) 获取
-
-   其他配置项可以保持不变。
-
-2. **主配置文件**：`config.json` 是项目运行时使用的配置文件，需要根据实际情况修改以下配置项：
+1. **主配置文件**：`config.json` 是项目运行时使用的配置文件，需要根据实际情况修改以下配置项：
    - 数据库配置（host、port、user、password、db）
    - 应用配置（title、description、version）
    - CORS 配置（allow_origins）
 
    注意：`config.json` 中的配置不会写入数据库，而是直接被应用读取使用。
+
+2. **系统配置初始化**：项目首次启动时会自动执行 `app/sql/system_config.sql` 脚本，初始化系统配置数据。如需修改默认配置，可以编辑该 SQL 脚本。
+
+   主要需要配置的系统参数包括：
+   - `qwen_api_key`：Qwen API 密钥，需要去 [阿里云百炼控制台](https://bailian.console.aliyun.com/#/home) 获取
+   - `longport_app_key`：LongPort API App Key，用于获取美股和港股数据
+   - `longport_app_secret`：LongPort API App Secret
+   - `longport_access_token`：LongPort API Access Token
+   - `longport_region`：LongPort API 区域设置（默认：cn）
 
 ## 运行项目
 
@@ -120,14 +134,14 @@ uvicorn main:app --host 0.0.0.0 --port 8001
 ## 主要 API 端点
 
 - `GET /health` - 健康检查
-- `GET /stocks/hs300` - 获取沪深300成分股
+- `GET /stocks/list` - 获取股票列表（支持多市场）
+- `POST /stocks/add` - 添加股票
+- `POST /stocks/sync` - 同步股票历史数据
 - `GET /stocks/wyckoff/analysis` - 单只股票威科夫分析
 - `POST /stocks/wyckoff/screening` - 执行威科夫筛选
-- `GET /stocks/wyckoff/history` - 获取筛选历史
 - `GET /stocks/wyckoff/analysis-history` - 获取分析历史
 - `GET /stocks/wyckoff/analysis-logs` - 获取分析日志
 - `POST /stocks/wyckoff/reparse/{log_id}` - 重新解析分析日志
-- `GET /stocks/history` - 获取股票历史数据
 - `GET /config` - 获取所有配置
 - `POST /config` - 更新配置
 
