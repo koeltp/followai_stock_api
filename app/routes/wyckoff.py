@@ -63,13 +63,13 @@ def get_screening_history_endpoint(limit: int = 50):
 
 
 @router.get("/analysis-history")
-def get_analysis_history_endpoint(code: str = None, page: int = 1, page_size: int = 10, search: str = None, start_date: str = None, end_date: str = None):
+def get_analysis_history_endpoint(code: str = None, page: int = 1, page_size: int = 10, search: str = None, start_date: str = None, end_date: str = None, market: str = None):
     """获取分析历史记录（支持搜索和日期范围）"""
     try:
         # 去除搜索参数的前后空格
         if search:
             search = search.strip()
-        return get_analysis_history(code, page, page_size, search, start_date, end_date)
+        return get_analysis_history(code, page, page_size, search, start_date, end_date, market)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取分析历史失败: {str(e)}")
 

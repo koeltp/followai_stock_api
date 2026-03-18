@@ -536,7 +536,7 @@ def save_wyckoff_analysis_to_db(analysis: Dict[str, Any], chat_completion_id: st
         print(f"分析数据: {analysis}")
 
 
-def get_analysis_history(code: str = None, page: int = 1, page_size: int = 10, search: str = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
+def get_analysis_history(code: str = None, page: int = 1, page_size: int = 10, search: str = None, start_date: str = None, end_date: str = None, market: str = None) -> Dict[str, Any]:
     """获取分析历史记录"""
     if not check_db_connection():
         return {"total": 0, "items": []}
@@ -575,6 +575,19 @@ def get_analysis_history(code: str = None, page: int = 1, page_size: int = 10, s
                 if end_date:
                     where_clauses.append("end_date <= %s")
                     params.append(end_date)
+                
+                if market:
+                    # 根据市场类型过滤股票代码
+                    import re
+                    if market == 'A':
+                        # A股代码格式：sh.600000 或 sz.000000 或纯数字
+                        where_clauses.append("(code LIKE 'sh.%' OR code LIKE 'sz.%' OR code REGEXP '^[0-9]{6}$')")
+                    elif market == 'HK':
+                        # 港股代码格式：HK.00001
+                        where_clauses.append("code LIKE 'HK.%'")
+                    elif market == 'US':
+                        # 美股代码格式：US.AAPL 或纯字母
+                        where_clauses.append("(code LIKE 'US.%' OR code REGEXP '^[A-Za-z]+$')")
                 
                 where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
                 # 获取总数
