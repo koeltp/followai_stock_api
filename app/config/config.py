@@ -90,6 +90,29 @@ class ConfigManager:
             "model": model
         }
         return self._qwen_api_config
+    
+    def get_longport_config(self) -> Dict[str, Any]:
+        """从数据库获取LongPort配置"""
+        from app.db.database import get_config_value
+        
+        app_key = get_config_value('longport_app_key', '')
+        app_secret = get_config_value('longport_app_secret', '')
+        access_token = get_config_value('longport_access_token', '')
+        region = get_config_value('longport_region', 'cn')
+        
+        if not app_key:
+            raise ValueError("LongPort App Key未配置，请在系统配置页面配置 longport_app_key")
+        if not app_secret:
+            raise ValueError("LongPort App Secret未配置，请在系统配置页面配置 longport_app_secret")
+        if not access_token:
+            raise ValueError("LongPort Access Token未配置，请在系统配置页面配置 longport_access_token")
+        
+        return {
+            "app_key": app_key,
+            "app_secret": app_secret,
+            "access_token": access_token,
+            "region": region
+        }
 
 
 # 创建配置管理器实例
@@ -101,3 +124,4 @@ CORS_CONFIG = config_manager.cors_config
 BAOSTOCK_CONFIG = config_manager.baostock_config
 LLM_MODEL_CONFIG = config_manager.llm_model_config
 get_qwen_api_config = config_manager.get_qwen_api_config
+get_longport_config = config_manager.get_longport_config

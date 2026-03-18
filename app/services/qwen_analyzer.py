@@ -61,6 +61,11 @@ def analyze_with_qwen(stock_data: Dict[str, Any]) -> Dict[str, Any]:
   - volume_analysis: 成交量分析详情
   - key_levels: 关键价位分析详情
   - risk_assessment: 风险评估详情
+
+重要要求：
+1. 请使用简体中文进行分析和回答
+2. 分析结果要专业、客观、准确
+3. 确保返回的JSON格式正确且完整
 """
     
     # 从配置中获取参数

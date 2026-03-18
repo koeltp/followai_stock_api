@@ -9,7 +9,8 @@ from .config import (
     CORS_CONFIG,
     BAOSTOCK_CONFIG,
     LLM_MODEL_CONFIG,
-    get_qwen_api_config
+    get_qwen_api_config,
+    get_longport_config
 )
 
 __all__ = [
@@ -18,5 +19,6 @@ __all__ = [
     'CORS_CONFIG',
     'BAOSTOCK_CONFIG',
     'LLM_MODEL_CONFIG',
-    'get_qwen_api_config'
+    'get_qwen_api_config',
+    'get_longport_config'
 ]

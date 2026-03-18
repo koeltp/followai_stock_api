@@ -23,6 +23,9 @@ for key in required_db_keys:
     if key not in DB_CONFIG:
         raise ValueError(f"数据库配置缺少必要字段: {key}")
 
+# 添加时区设置，使用北京时间（UTC+8）
+DB_CONFIG['init_command'] = "SET time_zone = '+8:00'"
+
 
 # 数据库连接状态
 DB_AVAILABLE = None
@@ -30,17 +33,14 @@ DB_AVAILABLE = None
 
 def check_db_connection():
     """检查数据库连接状态"""
-    global DB_AVAILABLE
-    if DB_AVAILABLE is None:
-        try:
-            conn = pymysql.connect(**DB_CONFIG)
-            conn.ping()
-            conn.close()
-            DB_AVAILABLE = True
-        except Exception as e:
-            print(f"数据库连接失败: {str(e)}")
-            DB_AVAILABLE = False
-    return DB_AVAILABLE
+    try:
+        conn = pymysql.connect(**DB_CONFIG)
+        conn.ping()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"数据库连接失败: {str(e)}")
+        return False
 
 
 def get_db_connection():
@@ -68,8 +68,9 @@ def init_database():
         # 创建股票基本信息表
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS stocks (
-                code VARCHAR(10) NOT NULL PRIMARY KEY,
-                name VARCHAR(50) NOT NULL,
+                code VARCHAR(20) NOT NULL PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                market_type VARCHAR(10) NOT NULL DEFAULT 'A',
                 is_hs300 TINYINT(1) DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -81,7 +82,7 @@ def init_database():
             CREATE TABLE IF NOT EXISTS stock_history (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 date DATE NOT NULL,
-                code VARCHAR(10) NOT NULL,
+                code VARCHAR(20) NOT NULL,
                 open DECIMAL(10,2),
                 high DECIMAL(10,2),
                 low DECIMAL(10,2),
@@ -223,13 +224,19 @@ def save_stock_to_db(stock: Dict[str, str]):
         try:
             with conn.cursor() as cursor:
                 sql = '''
-                    INSERT INTO stocks (code, name, is_hs300)
-                    VALUES (%s, %s, %s)
+                    INSERT INTO stocks (code, name, market_type, is_hs300)
+                    VALUES (%s, %s, %s, %s)
                     ON DUPLICATE KEY UPDATE
                         name = VALUES(name),
+                        market_type = VALUES(market_type),
                         is_hs300 = VALUES(is_hs300)
                 '''
-                cursor.execute(sql, (stock['code'], stock['name'], stock.get('is_hs300', 0)))
+                cursor.execute(sql, (
+                    stock['code'], 
+                    stock['name'], 
+                    stock.get('market_type', 'A'),
+                    stock.get('is_hs300', 0)
+                ))
             conn.commit()
         finally:
             conn.close()
@@ -290,6 +297,54 @@ def save_stock_history_to_db(history_data: List[Dict[str, Any]]):
             conn.close()
     except Exception as e:
         print(f"数据库保存失败: {str(e)}")
+
+
+def get_stock_history_from_db(code: str, start_date: str = None, end_date: str = None) -> List[Dict[str, Any]]:
+    """从数据库获取股票历史数据"""
+    if not check_db_connection():
+        return []
+    try:
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                where_clause = "code = %s"
+                params = [code]
+                
+                if start_date:
+                    where_clause += " AND date >= %s"
+                    params.append(start_date)
+                
+                if end_date:
+                    where_clause += " AND date <= %s"
+                    params.append(end_date)
+                
+                sql = f'''
+                    SELECT date, code, open, high, low, close, volume, amount
+                    FROM stock_history
+                    WHERE {where_clause}
+                    ORDER BY date
+                '''
+                cursor.execute(sql, params)
+                rows = cursor.fetchall()
+                
+                return [
+                    {
+                        'date': str(row[0]) if row[0] else '',
+                        'code': row[1],
+                        'open': float(row[2]) if row[2] else 0,
+                        'high': float(row[3]) if row[3] else 0,
+                        'low': float(row[4]) if row[4] else 0,
+                        'close': float(row[5]) if row[5] else 0,
+                        'volume': int(row[6]) if row[6] else 0,
+                        'amount': float(row[7]) if row[7] else 0,
+                    }
+                    for row in rows
+                ]
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"从数据库获取股票历史数据失败: {str(e)}")
+        return []
 
 
 def parse_price_value(value):
@@ -495,12 +550,19 @@ def get_analysis_history(code: str = None, page: int = 1, page_size: int = 10, s
                 params = []
                 
                 if code:
-                    # 提取股票代码的纯数字部分，处理带前缀的情况
+                    # 提取股票代码的纯数字部分，只处理 A 股的情况（sh. 或 sz. 开头）
                     import re
-                    pure_code = re.sub(r'^[a-z]+\.', '', code, flags=re.IGNORECASE)
-                    where_clauses.append("(code = %s OR code = %s)")
-                    params.extend([code, pure_code])
-                    print(f"查询股票代码: {code}, 纯数字代码: {pure_code}")
+                    if code.lower().startswith(('sh.', 'sz.')):
+                        # 对于 A 股，提取纯数字部分
+                        pure_code = re.sub(r'^[a-z]+\.', '', code, flags=re.IGNORECASE)
+                        where_clauses.append("(code = %s OR code = %s)")
+                        params.extend([code, pure_code])
+                        print(f"查询股票代码: {code}, 纯数字代码: {pure_code}")
+                    else:
+                        # 对于美股和港股，直接使用完整代码
+                        where_clauses.append("code = %s")
+                        params.append(code)
+                        print(f"查询股票代码: {code}")
                 
                 if search:
                     where_clauses.append("(code LIKE %s OR name LIKE %s)")
@@ -787,6 +849,93 @@ def get_hs300_stocks_from_db(page: int = 1, page_size: int = 10, search: str = N
             conn.close()
     except Exception as e:
         print(f"获取沪深300股票失败: {str(e)}")
+        return {"total": 0, "items": []}
+
+
+def get_all_stocks_from_db(page: int = 1, page_size: int = 10, search: str = None, market: str = None) -> Dict[str, Any]:
+    """从数据库获取所有股票（支持分页和搜索）"""
+    if not check_db_connection():
+        return {"total": 0, "items": []}
+    
+    try:
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                # 检查 stocks 表是否包含 market_type 字段
+                cursor.execute("SHOW COLUMNS FROM stocks LIKE 'market_type'")
+                has_market_type = cursor.fetchone() is not None
+                
+                where_clause = "1=1"
+                params = []
+                
+                if search:
+                    where_clause += " AND (code LIKE %s OR name LIKE %s)"
+                    params.extend([f'%{search}%', f'%{search}%'])
+                
+                if market and has_market_type:
+                    where_clause += " AND market_type = %s"
+                    params.append(market)
+                
+                count_sql = f"SELECT COUNT(*) FROM stocks WHERE {where_clause}"
+                cursor.execute(count_sql, params)
+                total = cursor.fetchone()[0]
+                
+                offset = (page - 1) * page_size
+                query_params = params + [page_size, offset]
+                
+                if has_market_type:
+                    cursor.execute(f'''
+                        SELECT code, name, market_type, is_hs300, created_at, updated_at
+                        FROM stocks
+                        WHERE {where_clause}
+                        ORDER BY code
+                        LIMIT %s OFFSET %s
+                    ''', query_params)
+                    rows = cursor.fetchall()
+                    
+                    items = [
+                        {
+                            "code": row[0],
+                            "name": row[1],
+                            "market_type": row[2],
+                            "is_hs300": bool(row[3]),
+                            "created_at": str(row[4]) if row[4] else None,
+                            "updated_at": str(row[5]) if row[5] else None
+                        }
+                        for row in rows
+                    ]
+                else:
+                    cursor.execute(f'''
+                        SELECT code, name, is_hs300, created_at, updated_at
+                        FROM stocks
+                        WHERE {where_clause}
+                        ORDER BY code
+                        LIMIT %s OFFSET %s
+                    ''', query_params)
+                    rows = cursor.fetchall()
+                    
+                    items = [
+                        {
+                            "code": row[0],
+                            "name": row[1],
+                            "market_type": "A",  # 默认值
+                            "is_hs300": bool(row[2]),
+                            "created_at": str(row[3]) if row[3] else None,
+                            "updated_at": str(row[4]) if row[4] else None
+                        }
+                        for row in rows
+                    ]
+                
+                return {
+                    "total": total,
+                    "page": page,
+                    "page_size": page_size,
+                    "items": items
+                }
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"获取股票列表失败: {str(e)}")
         return {"total": 0, "items": []}
 
 
