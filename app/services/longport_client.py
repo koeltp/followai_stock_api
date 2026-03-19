@@ -6,8 +6,8 @@ LongPort客户端模块
 from typing import List, Dict, Any, Optional
 from longport.openapi import Config, QuoteContext, AdjustType, Period
 from app.config import get_longport_config
-from app.db import save_stock_to_db, save_stock_history_to_db
-from datetime import datetime, timedelta, date
+from app.db import save_stock_history_to_db
+from datetime import datetime, timedelta
 
 
 class LongPortClient:
@@ -211,47 +211,13 @@ class LongPortClient:
 
 longport_client = LongPortClient()
 
-
-def get_us_stock_info(symbol: str) -> Optional[Dict[str, Any]]:
-    """获取美股信息"""
-    return longport_client.get_stock_info(symbol)
-
-
-def get_hk_stock_info(symbol: str) -> Optional[Dict[str, Any]]:
-    """获取港股信息"""
-    return longport_client.get_stock_info(symbol)
-
-
-def get_us_stock_history(symbol: str, start_date: str = None, end_date: str = None) -> List[Dict[str, Any]]:
-    """获取美股历史数据"""
-    history = longport_client.get_historical_data(symbol, start_date, end_date)
-    if history:
-        save_stock_history_to_db(history)
-    return history
-
-
-def get_hk_stock_history(symbol: str, start_date: str = None, end_date: str = None) -> List[Dict[str, Any]]:
-    """获取港股历史数据"""
-    history = longport_client.get_historical_data(symbol, start_date, end_date)
-    if history:
-        save_stock_history_to_db(history)
-    return history
-
-
-def sync_stock_data(code: str, market_type: str, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
+def sync_stock_data(code: str, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
     """同步股票历史数据"""
     try:
-        if market_type == 'US':
-            history = get_us_stock_history(code, start_date, end_date)
-        elif market_type == 'HK':
-            history = get_hk_stock_history(code, start_date, end_date)
-        else:
-            return {
-                'success': False,
-                'message': f'不支持的市场类型: {market_type}'
-            }
-        
+        history = longport_client.get_historical_data(code, start_date, end_date)
         if history:
+            save_stock_history_to_db(history)
+        
             return {
                 'success': True,
                 'message': f'成功同步 {len(history)} 条历史数据',

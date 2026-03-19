@@ -152,7 +152,7 @@ def sync_stock(request: SyncStockRequest):
                     'message': '未能获取到历史数据'
                 }
         else:
-            result = sync_stock_data(request.code, request.market_type, request.start_date, request.end_date)
+            result = sync_stock_data(request.code, request.start_date, request.end_date)
             return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"同步股票数据失败: {str(e)}")
