@@ -66,6 +66,12 @@ class ConfigManager:
             raise ValueError("LLM模型配置缺失，请在config.json中配置 llm_model_config")
         return llm_model_config
     
+    @property
+    def scheduler_config(self) -> Dict[str, Any]:
+        """获取调度器配置"""
+        scheduler_config = self.config.get('scheduler', {})
+        return scheduler_config
+    
     def get_qwen_api_config(self) -> Dict[str, Any]:
         """从数据库获取Qwen API配置"""
         if self._qwen_api_config is not None:
@@ -123,5 +129,6 @@ APP_CONFIG = config_manager.app_config
 CORS_CONFIG = config_manager.cors_config
 BAOSTOCK_CONFIG = config_manager.baostock_config
 LLM_MODEL_CONFIG = config_manager.llm_model_config
+SCHEDULER_CONFIG = config_manager.scheduler_config
 get_qwen_api_config = config_manager.get_qwen_api_config
 get_longport_config = config_manager.get_longport_config

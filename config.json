@@ -28,5 +28,19 @@
     "timeout": 30,
     "temperature": 0.7,
     "max_tokens": 2000
+  },
+  "scheduler": {
+    "enabled": true,
+    "tasks": {
+      "update_hs300": {
+        "enabled": true,
+        "cron": "09:00"
+      },
+      "daily_analysis": {
+        "enabled": true,
+        "cron": "15:00",
+        "days": ["monday", "tuesday", "wednesday", "thursday", "friday"]
+      }
+    }
   }
 }
