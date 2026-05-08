@@ -1,11 +1,12 @@
 fastapi==0.104.1
 uvicorn==0.24.0
 pymysql==1.0.3
-pydantic==2.5.0
+pydantic==2.13.4
 pydantic-settings==2.1.0
 python-dotenv==1.0.0
-baostock==0.8.8
+baostock==0.8.9
 requests==2.31.0
 openai==1.35.14
 longport==3.0.23
 schedule==1.2.0
+cryptography==41.0.7

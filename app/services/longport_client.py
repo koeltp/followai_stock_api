@@ -174,7 +174,7 @@ class LongPortClient:
             print(f"处理后的数据: {result[:2]}...")
             return result
         except Exception as e:
-            print(f"获取股票历史数据失败: {str(e)}")
+            print(f"获取长桥股票历史数据失败: {str(e)}")
             return []
     
     def get_stock_info(self, symbol: str) -> Optional[Dict[str, Any]]:

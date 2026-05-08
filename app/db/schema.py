@@ -17,11 +17,6 @@ def init_database():
             return False
         try:
             with conn.cursor() as cursor:
-                # 检查 system_config 表是否已有数据
-                cursor.execute('SELECT COUNT(*) FROM system_config')
-                config_count = cursor.fetchone()['COUNT(*)']
-                is_new_database = config_count == 0
-                
                 # 创建股票表
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS stocks (
@@ -102,6 +97,11 @@ def init_database():
                         FOREIGN KEY (stock_id) REFERENCES stocks(id) ON DELETE CASCADE
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
                 ''')
+                
+                # 检查 system_config 表是否已有数据（在创建表之后检查）
+                cursor.execute('SELECT COUNT(*) FROM system_config')
+                config_count = cursor.fetchone()['COUNT(*)']
+                is_new_database = config_count == 0
                 
                 # 只有在新创建的数据库中才执行 SQL 脚本
                 if is_new_database:

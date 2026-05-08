@@ -152,7 +152,7 @@ def single_stock_analysis(code: str, start_date: str, end_date: str) -> Any:
             for item in normalized_stock_data
         ]
     }
-    
+    print(f"分析数据bbbbbbbbbbbbb: {analysis_data}")
     # 使用Qwen进行分析
     analysis_result = analyze_with_qwen(analysis_data)
     

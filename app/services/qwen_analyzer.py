@@ -72,12 +72,37 @@ def analyze_with_qwen(stock_data: Dict[str, Any]) -> Dict[str, Any]:
     # 从配置中获取参数
     temperature = float(get_config_value('qwen_temperature', 0.3))
     max_tokens = int(get_config_value('qwen_max_tokens', 2000))
-    
+
     # 创建OpenAI客户端
-    client = OpenAI(
-        api_key=api_key,
-        base_url=base_url
-    )
+    try:
+        # 只传递必要的参数，避免传递可能不存在的proxies参数
+        import httpx
+        http_client = httpx.Client()
+        client = OpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            http_client=http_client 
+        )
+    except TypeError as e:
+        print(f"创建OpenAI客户端失败: {str(e)}")
+        # 分析失败时返回默认结果
+        return {
+            "code": stock_data['code'],
+            "name": stock_data['name'],
+            "start_date": stock_data['start_date'],
+            "end_date": stock_data['end_date'],
+            "trend": "未知",
+            "volume_pattern": "未知",
+            "support_level": None,
+            "resistance_level": None,
+            "signal": "持有",
+            "confidence": 0.5,
+            "analysis_details": {
+                "error": f"创建OpenAI客户端失败: {str(e)}"
+            },
+            "token_usage": 0,
+            "cost": 0.0
+        }
     
     # 发送请求
     try:
